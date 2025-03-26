@@ -7,7 +7,6 @@ use core::marker::Send;
 
 pub struct RollingBuffer<const S: usize, T: Default + Copy> {
     data: [T; S],
-    validator: [bool; S],
     write_head: usize,
     read_head: usize,
 }
@@ -15,7 +14,6 @@ impl<const S: usize, T: Default + Copy> RollingBuffer<S, T> {
     pub const fn new(def: T) -> Self {
         Self {
             data: [def; S],
-            validator: [false; S],
             write_head: 0,
             read_head: 0,
         }
@@ -54,13 +52,6 @@ impl<const S: usize, T: Default + Copy> RollingBuffer<S, T> {
             return false
         };
 
-        match self.validator[self.write_head] {
-            true => return false,
-            false => {
-                self.validator[self.write_head] = true;
-            }
-        };
-
         self.data[self.write_head] = data;
         self.write_head = next;
 
@@ -71,7 +62,6 @@ impl<const S: usize, T: Default + Copy> RollingBuffer<S, T> {
     pub fn read(&mut self) -> Option<&T> {
         if self.read_head != self.write_head {
             let next = Self::increase_head(self.read_head);
-            self.validator[self.read_head] = false;
             let ret = Some(&self.data[self.read_head]);
             self.read_head = next;
             ret
