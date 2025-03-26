@@ -77,34 +77,6 @@ impl<const S: usize, T: Default + Copy + Send + Sync> RollingBuffer<S, T> {
     }
 }
 
-unsafe impl<T: Send + Sync> Send for GlobalData<T> {}
-unsafe impl<T: Send + Sync> Sync for GlobalData<T> {}
-
-pub struct GlobalData<T: Send + Sync> {
-    inner: UnsafeCell<T>,
-}
-impl<T: Send + Sync> GlobalData<T> {
-    pub const fn new_const(inner: T) -> Self {
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
-    }
-
-    pub const fn new(inner: T) -> Self {
-        Self {
-            inner: UnsafeCell::new(inner),
-        }
-    }
-
-    pub fn get_ref(&self) -> &T {
-        unsafe { &(*self.inner.get()) }
-    }
-
-    pub fn get_mut_ref(&self) -> &mut T {
-        unsafe { &mut (*self.inner.get()) }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
