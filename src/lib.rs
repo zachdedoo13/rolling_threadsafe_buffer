@@ -45,7 +45,6 @@ impl<const S: usize, T: Default + Copy + Send + Sync> RollingBuffer<S, T> {
     /// returns false if read head doesn't keep up
     #[inline(always)]
     pub fn write(&mut self, data: T) -> bool {
-
         let next = Self::increase_head(self.write_head);
         if next == self.read_head {
             return false
@@ -146,7 +145,7 @@ mod tests {
 
     #[test]
     fn just_write_checked() {
-        let mut buff: RollingBuffer<4, usize> = RollingBuffer::new(0);
+        let mut buff: RollingBuffer<5, usize> = RollingBuffer::new(0);
         buff.write(1);
         buff.write(2);
         buff.write(3);
@@ -165,6 +164,32 @@ mod tests {
 
         // assert_eq!(buff.write(5), true);
         // assert_eq!(buff.write(6), false);
+    }
+
+    #[test]
+    fn snake() {
+        let mut buffer: RollingBuffer<10, i32> = RollingBuffer::new(0);
+
+        for c in 0..5 {
+            // Write as much as possible
+            for i in 0..9 {
+                assert!(buffer.write(i), "Index {i} iter {c}");
+            }
+            for _ in 0..50 {
+                assert_eq!(buffer.write(0), false);
+            }
+
+            // Read as much as possible
+            for i in 0..9 {
+                assert_eq!(buffer.read(), Some(&i), "Index {i} iter {c}");
+            }
+            for _ in 0..50 {
+                assert_eq!(buffer.read(), None);
+            }
+
+            // Buffer should now be empty
+            assert_eq!(buffer.read(), None);
+        }
     }
 
     #[cfg(test)]
@@ -293,8 +318,6 @@ mod tests {
             use std::thread::{sleep, spawn};
             use std::time::Duration;
 
-
-
             const ITER_C: usize = 60;
 
             #[test]
@@ -364,7 +387,7 @@ mod tests {
                         unsafe {
                             if SEL.load(Ordering::SeqCst) {
                                 for _ in 0..10 {
-                                    if let Some(_) = DATA.read() {
+                                    if let None = DATA.read() {
                                         panic!()
                                     }
                                 }
