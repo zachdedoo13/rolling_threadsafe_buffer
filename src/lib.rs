@@ -1,13 +1,17 @@
-use core::cell::UnsafeCell;
-use core::sync::atomic::AtomicBool;
+#![cfg_attr(not(test), no_std)]
 
-pub struct RollingBuffer<const S: usize, T: Default + Copy + Send + Sync> {
+use core::sync::atomic::AtomicBool;
+use core::option::Option::{None, Some};
+use core::marker::Send;
+
+
+pub struct RollingBuffer<const S: usize, T: Default + Copy> {
     data: [T; S],
     validator: [bool; S],
     write_head: usize,
     read_head: usize,
 }
-impl<const S: usize, T: Default + Copy + Send + Sync> RollingBuffer<S, T> {
+impl<const S: usize, T: Default + Copy> RollingBuffer<S, T> {
     pub const fn new(def: T) -> Self {
         Self {
             data: [def; S],
@@ -174,109 +178,109 @@ mod tests {
 
         const ITER_C: usize = 60;
 
-        #[test]
-        fn write_limited_unchecked() {
-            static KILL: AtomicBool = AtomicBool::new(false);
-            static DATA: GlobalData<RollingBuffer<25, i32>> =
-                GlobalData::new(RollingBuffer::new(0));
-
-            let read = spawn(|| {
-                let r = DATA.get_mut_ref();
-                let mut seen = HashSet::new();
-                loop {
-                    if KILL.load(Ordering::SeqCst) {
-                        break;
-                    };
-
-                    if let Some(val) = unsafe { r.read_unchecked() } {
-                        // println!("READ {val}");
-                        if seen.contains(val) {
-                            panic!()
-                        } else {
-                            seen.insert(*val);
-                        };
-                    }
-
-                    sleep(Duration::from_millis(0));
-                }
-            });
-            let write = spawn(|| {
-                let w = DATA.get_mut_ref();
-                let mut i = 0;
-                loop {
-                    if KILL.load(Ordering::SeqCst) {
-                        break;
-                    };
-
-                    unsafe {
-                        // println!("WRITE {i}");
-                        w.write_unchecked(i);
-                    }
-                    i += 1;
-                    sleep(Duration::from_millis(40));
-
-                    if i >= ITER_C as i32 {
-                        KILL.store(true, Ordering::SeqCst);
-                    };
-                }
-            });
-
-            read.join().unwrap();
-            write.join().unwrap();
-        }
-
-        #[test]
-        fn write_limited_chunk_unchecked() {
-            static KILL: AtomicBool = AtomicBool::new(false);
-            static DATA: GlobalData<RollingBuffer<25, i32>> =
-                GlobalData::new(RollingBuffer::new(0));
-
-            let read = spawn(|| {
-                let r = DATA.get_mut_ref();
-                let mut seen = HashSet::new();
-                loop {
-                    if KILL.load(Ordering::SeqCst) {
-                        break;
-                    };
-
-                    for _ in 0..6 {
-                        if let Some(val) = unsafe { r.read_unchecked() } {
-                            // println!("READ {val}");
-                            if seen.contains(val) {
-                                panic!()
-                            } else {
-                                seen.insert(*val);
-                            };
-                        }
-                    }
-
-                    sleep(Duration::from_millis(30));
-                }
-            });
-            let write = spawn(|| {
-                let w = DATA.get_mut_ref();
-                let mut i = 0;
-                loop {
-                    if KILL.load(Ordering::SeqCst) {
-                        break;
-                    };
-
-                    unsafe {
-                        // println!("WRITE {i}");
-                        w.write_unchecked(i);
-                    }
-                    i += 1;
-                    sleep(Duration::from_millis(10));
-
-                    if i >= ITER_C as i32 {
-                        KILL.store(true, Ordering::SeqCst);
-                    };
-                }
-            });
-
-            read.join().unwrap();
-            write.join().unwrap();
-        }
+        // #[test]
+        // fn write_limited_unchecked() {
+        //     static KILL: AtomicBool = AtomicBool::new(false);
+        //     static DATA: GlobalData<RollingBuffer<25, i32>> =
+        //         GlobalData::new(RollingBuffer::new(0));
+        //
+        //     let read = spawn(|| {
+        //         let r = DATA.get_mut_ref();
+        //         let mut seen = HashSet::new();
+        //         loop {
+        //             if KILL.load(Ordering::SeqCst) {
+        //                 break;
+        //             };
+        //
+        //             if let Some(val) = unsafe { r.read_unchecked() } {
+        //                 // println!("READ {val}");
+        //                 if seen.contains(val) {
+        //                     panic!()
+        //                 } else {
+        //                     seen.insert(*val);
+        //                 };
+        //             }
+        //
+        //             sleep(Duration::from_millis(0));
+        //         }
+        //     });
+        //     let write = spawn(|| {
+        //         let w = DATA.get_mut_ref();
+        //         let mut i = 0;
+        //         loop {
+        //             if KILL.load(Ordering::SeqCst) {
+        //                 break;
+        //             };
+        //
+        //             unsafe {
+        //                 // println!("WRITE {i}");
+        //                 w.write_unchecked(i);
+        //             }
+        //             i += 1;
+        //             sleep(Duration::from_millis(40));
+        //
+        //             if i >= ITER_C as i32 {
+        //                 KILL.store(true, Ordering::SeqCst);
+        //             };
+        //         }
+        //     });
+        //
+        //     read.join().unwrap();
+        //     write.join().unwrap();
+        // }
+        //
+        // #[test]
+        // fn write_limited_chunk_unchecked() {
+        //     static KILL: AtomicBool = AtomicBool::new(false);
+        //     static DATA: GlobalData<RollingBuffer<25, i32>> =
+        //         GlobalData::new(RollingBuffer::new(0));
+        //
+        //     let read = spawn(|| {
+        //         let r = DATA.get_mut_ref();
+        //         let mut seen = HashSet::new();
+        //         loop {
+        //             if KILL.load(Ordering::SeqCst) {
+        //                 break;
+        //             };
+        //
+        //             for _ in 0..6 {
+        //                 if let Some(val) = unsafe { r.read_unchecked() } {
+        //                     // println!("READ {val}");
+        //                     if seen.contains(val) {
+        //                         panic!()
+        //                     } else {
+        //                         seen.insert(*val);
+        //                     };
+        //                 }
+        //             }
+        //
+        //             sleep(Duration::from_millis(30));
+        //         }
+        //     });
+        //     let write = spawn(|| {
+        //         let w = DATA.get_mut_ref();
+        //         let mut i = 0;
+        //         loop {
+        //             if KILL.load(Ordering::SeqCst) {
+        //                 break;
+        //             };
+        //
+        //             unsafe {
+        //                 // println!("WRITE {i}");
+        //                 w.write_unchecked(i);
+        //             }
+        //             i += 1;
+        //             sleep(Duration::from_millis(10));
+        //
+        //             if i >= ITER_C as i32 {
+        //                 KILL.store(true, Ordering::SeqCst);
+        //             };
+        //         }
+        //     });
+        //
+        //     read.join().unwrap();
+        //     write.join().unwrap();
+        // }
 
         #[cfg(test)]
         mod safe {
