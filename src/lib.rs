@@ -1,6 +1,5 @@
 #![cfg_attr(not(test), no_std)]
 
-use core::sync::atomic::AtomicBool;
 use core::option::Option::{None, Some};
 use core::marker::Send;
 
@@ -69,11 +68,42 @@ impl<const S: usize, T: Default + Copy> RollingBuffer<S, T> {
             None
         }
     }
+
+    #[inline(always)]
+    pub fn read_write_head_dist(&self) -> usize {
+        match self.read_head < self.write_head {
+            true => {
+                self.write_head - self.read_head
+            }
+            false => {
+                (S - self.read_head) + (self.write_head)
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dist_check() {
+        let mut thing = RollingBuffer::<5, i32>::new(0);
+        thing.write(1);
+        thing.write(1);
+        thing.write(1);
+        thing.read();
+        thing.read();
+
+        assert_eq!(thing.read_write_head_dist(), 1);
+
+        thing.write(1);
+        thing.read();
+        thing.write(1);
+        thing.write(1);
+
+        assert_eq!(thing.read_write_head_dist(), 3);
+    }
 
     #[test]
     fn just_write_unchecked() {
